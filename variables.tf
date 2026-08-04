@@ -55,3 +55,28 @@ variable "autonomous_database_admin_password" {
   description = "Admin password for the Autonomous Database. Must be 12-30 characters and include uppercase, lowercase, and a number."
   sensitive   = true
 }
+
+variable "ingress_rules" {
+  type = map(object({
+    description = string
+    protocol    = string # "tcp" or "udp"
+    source      = optional(string, "0.0.0.0/0")
+    min_port    = number
+    max_port    = optional(number, null) # null = single port
+  }))
+  description = "Firewall ingress rules for the security list, keyed by rule name."
+  default = {
+    ssh         = { description = "SSH", protocol = "tcp", min_port = 22 }
+    http        = { description = "HTTP", protocol = "tcp", min_port = 80 }
+    https       = { description = "HTTPS", protocol = "tcp", min_port = 443 }
+    caddy_http  = { description = "Caddy HTTP", protocol = "tcp", min_port = 8080 }
+    caddy_https = { description = "Caddy HTTPS", protocol = "tcp", min_port = 4443 }
+    torrent_dht = { description = "Torrent DHT", protocol = "udp", min_port = 6881 }
+    torrent_tcp = { description = "Torrent TCP", protocol = "tcp", min_port = 6890, max_port = 6999 }
+    mosh        = { description = "Mosh", protocol = "udp", min_port = 60000, max_port = 61000 }
+  }
+  validation {
+    condition     = alltrue([for rule in values(var.ingress_rules) : contains(["tcp", "udp"], rule.protocol)])
+    error_message = "Ingress rule protocol must be \"tcp\" or \"udp\"."
+  }
+}

@@ -50,8 +50,18 @@ instance_shape_config_memory_in_gbs = 6
 # Autonomous Database admin password
 # Rules: 12–30 characters, must include uppercase, lowercase, digit, and special character.
 #        Must not contain the word "admin".
-# NOTE: prefer passing this via the TF_VAR_autonomous_database_admin_password env variable
-#       (see setup.sh) rather than storing it here in plain text.
+# NOTE: this file is gitignored, so storing the password here is safe.
+#       Never commit it.
 # -------------------------
 
 # autonomous_database_admin_password = "YourStr0ngP@ssword!"
+
+# -------------------------
+# Firewall ingress rules (optional override)
+# The default rules live in variables.tf. Override the whole map here:
+# -------------------------
+
+# ingress_rules = {
+#   ssh   = { description = "SSH",   protocol = "tcp", min_port = 22 }
+#   https = { description = "HTTPS", protocol = "tcp", min_port = 443 }
+# }
