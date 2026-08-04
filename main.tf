@@ -96,8 +96,9 @@ resource "oci_core_security_list" "security_list" {
 
 // Compute
 resource "oci_core_instance" "free_instance" {
-  count = 2
-  // A1.Flex is only available in one AD per region — use the same AD for both.
+  // Single instance using the full A1 quota (see terraform.tfvars).
+  // A1.Flex is only available in one AD per region.
+  count = 1
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   compartment_id      = var.compartment_ocid
   display_name        = "freeInstance${count.index}"
@@ -211,10 +212,12 @@ resource "oci_database_autonomous_database" "autonomous_database" {
   is_free_tier            = "true"
 
   // Always Free ADB is provisioned as "Autonomous AI Database" by OCI, which
-  // does not support updating license_model or is_auto_scaling_enabled.
-  // Ignoring these prevents a 403 on every subsequent terraform apply.
+  // reports cpu_core_count as 0 and does not support updating cpu_core_count,
+  // license_model, or is_auto_scaling_enabled. Ignoring these prevents a
+  // 403 on every subsequent terraform apply.
   lifecycle {
     ignore_changes = [
+      cpu_core_count,
       license_model,
       is_auto_scaling_enabled,
     ]
