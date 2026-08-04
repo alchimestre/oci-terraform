@@ -1,0 +1,57 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit it.
+#
+# cp terraform.tfvars.example terraform.tfvars
+
+# -------------------------
+# OCI API authentication
+# Find these under: OCI Console → avatar (top right) → My Profile → API keys
+# -------------------------
+
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+user_ocid        = "ocid1.user.oc1..aaaaaaaXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+# NOTE: ~ is NOT supported here — the OCI provider does not expand it.
+#       Use an absolute path, e.g. /Users/yourname/.oci/oci_api_key.pem
+private_key_path = "/Users/you/.oci/oci_api_key.pem"
+
+# Your home region identifier
+# Full list: https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm
+region = "us-ashburn-1"
+
+# -------------------------
+# Compartment
+# Find under: Identity & Security → Compartments → <your compartment> → OCID
+# You can use your tenancy_ocid here to deploy into the root compartment.
+# -------------------------
+
+compartment_ocid = "ocid1.compartment.oc1..aaaaaaaXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+# -------------------------
+# SSH access to the compute instances
+# Paste the contents of your public key (e.g. ~/.ssh/id_ed25519.pub).
+# Leave empty ("") to have Terraform generate a key pair for you —
+# the private key will appear in the `generated_private_key_pem` output.
+# -------------------------
+
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX you@machine"
+
+# -------------------------
+# Compute instance shape (Always Free eligible shapes shown below)
+# VM.Standard.A1.Flex  — Ampere ARM, up to 4 OCPUs / 24 GB across all instances
+# VM.Standard.E2.1.Micro — AMD, 1 OCPU / 1 GB, max 2 instances
+# -------------------------
+
+instance_shape                      = "VM.Standard.A1.Flex"
+instance_ocpus                      = 1
+instance_shape_config_memory_in_gbs = 6
+
+# -------------------------
+# Autonomous Database admin password
+# Rules: 12–30 characters, must include uppercase, lowercase, digit, and special character.
+#        Must not contain the word "admin".
+# NOTE: prefer passing this via the TF_VAR_autonomous_database_admin_password env variable
+#       (see setup.sh) rather than storing it here in plain text.
+# -------------------------
+
+# autonomous_database_admin_password = "YourStr0ngP@ssword!"

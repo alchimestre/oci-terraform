@@ -49,3 +49,9 @@ variable "instance_shape_config_memory_in_gbs" {
   description = "RAM quantity to assign to a given instance."
   default     = 6
 }
+
+variable "autonomous_database_admin_password" {
+  type        = string
+  description = "Admin password for the Autonomous Database. Must be 12-30 characters and include uppercase, lowercase, and a number."
+  sensitive   = true
+}
