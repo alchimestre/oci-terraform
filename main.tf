@@ -12,6 +12,48 @@ data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
 }
 
+// Authoritative capacity check: OCI's Compute Capacity Report reports actual
+// host capacity per AD (and per fault domain) for a shape+config. ListShapes
+// alone is NOT enough — A1.Flex is listed in every AD even when all are out
+// of capacity (uk-london-1 currently returns OUT_OF_HOST_CAPACITY everywhere).
+// Reports are free and create nothing but a report object. report_epoch forces
+// recreation on every apply so each retry sees fresh capacity numbers.
+resource "terraform_data" "report_epoch" {
+  input = timestamp()
+}
+
+resource "oci_core_compute_capacity_report" "a1" {
+  for_each = { for ad in data.oci_identity_availability_domains.ads.availability_domains : ad.name => ad }
+
+  availability_domain = each.key
+  compartment_id      = var.tenancy_ocid
+  shape_availabilities {
+    instance_shape = var.instance_shape
+    instance_shape_config {
+      ocpus         = var.instance_ocpus
+      memory_in_gbs = var.instance_shape_config_memory_in_gbs
+    }
+  }
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.report_epoch]
+  }
+}
+
+locals {
+  a1_ads = [
+    for ad, report in oci_core_compute_capacity_report.a1 : ad
+    if anytrue([for sa in report.shape_availabilities : sa.availability_status == "AVAILABLE"])
+  ]
+  // Fault domain of the first AVAILABLE entry in the chosen AD's report.
+  // Empty when the report aggregates the whole AD (no per-FD breakdown).
+  a1_fd = length(local.a1_ads) > 0 ? try([
+    for sa in oci_core_compute_capacity_report.a1[local.a1_ads[0]].shape_availabilities :
+    sa.fault_domain
+    if sa.availability_status == "AVAILABLE"
+  ][0], "") : ""
+}
+
 // Networking
 resource "oci_core_virtual_network" "vcn" {
   cidr_block     = "10.1.0.0/16"
@@ -97,9 +139,11 @@ resource "oci_core_security_list" "security_list" {
 // Compute
 resource "oci_core_instance" "free_instance" {
   // Single instance using the full A1 quota (see terraform.tfvars).
-  // A1.Flex is only available in one AD per region.
-  count = 1
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  // A1 capacity rotates between ADs and fault domains; the capacity report
+  // above picks the first AD (and FD, when reported) that has capacity now.
+  count               = 1
+  availability_domain = try(local.a1_ads[0], "")
+  fault_domain        = local.a1_fd != "" ? local.a1_fd : null
   compartment_id      = var.compartment_ocid
   display_name        = "freeInstance${count.index}"
   shape               = var.instance_shape
@@ -123,6 +167,13 @@ resource "oci_core_instance" "free_instance" {
 
   metadata = {
     ssh_authorized_keys = (var.ssh_public_key != "") ? var.ssh_public_key : tls_private_key.compute_ssh_key.public_key_openssh
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(local.a1_ads) > 0
+      error_message = "Out of host capacity: no availability domain in ${var.region} currently has capacity for ${var.instance_shape} (${var.instance_ocpus} OCPU / ${var.instance_shape_config_memory_in_gbs} GB). setup.sh will retry."
+    }
   }
 }
 
@@ -157,7 +208,7 @@ data "oci_core_images" "images" {
 // VNIC data sources
 data "oci_core_vnic_attachments" "app_vnics" {
   compartment_id      = var.compartment_ocid
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  availability_domain = try(local.a1_ads[0], "")
   instance_id         = oci_core_instance.free_instance[0].id
 }
 
