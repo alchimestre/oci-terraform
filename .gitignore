@@ -4,3 +4,4 @@ terraform.tfstate*
 terraform.tfvars
 setup.sh
 connect.sh
+*.tfplan
